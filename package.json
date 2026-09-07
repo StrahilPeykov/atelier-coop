@@ -1,0 +1,32 @@
+{
+  "name": "the-glasshouse-lesson",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node tools/dev.mjs",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "tsx --test tests/simulation.test.ts",
+    "test:e2e": "node tests/playthrough.mjs",
+    "assets": "python tools/blender/build.py",
+    "assets:optimize": "node tools/asset-pipeline/optimize.mjs"
+  },
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.20.0",
+    "@trystero-p2p/ws-relay": "^0.25.4",
+    "three": "^0.185.1",
+    "trystero": "^0.25.4"
+  },
+  "devDependencies": {
+    "@gltf-transform/core": "^4.5.0",
+    "@gltf-transform/extensions": "^4.5.0",
+    "@gltf-transform/functions": "^4.5.0",
+    "@types/node": "^26.5.0",
+    "@types/three": "^0.185.4",
+    "playwright": "^1.63.0",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.2"
+  }
+}
