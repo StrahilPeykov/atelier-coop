@@ -26,12 +26,12 @@ The dev command also starts a tiny **signaling-only** relay on port 8787. The cl
 | Left mouse / R | Spark: chimes, droplets, mechanisms, paired seals |
 | Hold E | Channel your discipline near its target |
 | E + A / D | Shaper: guide, rotate, or slide |
-| E + W / S | Warden on the flower: grow higher / settle lower |
+| E + W / S | Warden on flower or vine: grow higher / settle lower |
 | Q | Pick up / toss a nearby small ceramic |
-| F | Magical partner ping |
+| F | Magical ping at the mouse pointer |
 | Escape | Field notes, sound volume, safe-ground recovery, lobby |
 
-The flower needs both people aboard. Shape controls its horizontal position and Bloom controls its height. On the vine, Shaper steers while Warden holds E to grow and releases to wait. Incorrect directions pause growth safely. Final nodes belong to the two characters: Ivo/creator left, Nell/guest right, regardless of discipline. Paired Sparks allow three seconds.
+The flower needs both people aboard. Shape controls its horizontal position and Bloom controls its height. On the vine, Shaper bends left/right while Warden grows higher or curls lower through six arches, holding E to advance and releasing to wait. Both direction and height must fit; incorrect trajectories pause safely. Final nodes belong to the two characters: Ivo/creator left, Nell/guest right, regardless of discipline. Paired Sparks allow three seconds.
 
 ## Online rooms and production
 
@@ -43,6 +43,14 @@ npm run preview
 `dist/` is a static site suitable for HTTPS hosting, including Cloudflare Pages or Workers Assets. Nothing has been deployed. Serve the **same build** to both people. Production uses Trystero's public Nostr discovery automatically; all gameplay travels peer-to-peer. Append `?online=1` during development to exercise that production discovery path. Room links contain `?room=ABCDEF`; the code is an invitation, not a user account.
 
 Local production QA uses `http://localhost:4173/?local=1&debug=1` while `npm run dev` supplies port 8787. For different devices, use an HTTPS origin accessible to both; plain HTTP on a LAN IP does not provide all browser secure-context APIs. Public discovery and direct NAT traversal depend on the networks involved.
+
+**Cloudflare Workers Builds:** the committed `wrangler.jsonc` declares `dist/` as the static assets directory and runs `npm run build` before upload. Your existing `npx wrangler versions upload` command can remain unchanged. Wrangler is pinned in the lockfile. The configured Worker name is `atelier-coop`; it must match the connected Cloudflare Worker. A separate dashboard build command is optional because the Wrangler build hook covers it. Validate locally without uploading:
+
+```sh
+npx wrangler versions upload --dry-run
+```
+
+For Cloudflare Pages instead, use build command `npm run build` and output directory `dist`. [Cloudflare static-assets configuration](https://developers.cloudflare.com/workers/static-assets/binding/) and [custom builds](https://developers.cloudflare.com/workers/wrangler/custom-builds/).
 
 **Optional TURN:** set `VITE_TURN_ENDPOINT` to your credential endpoint before building. It should return `{ "iceServers": [...] }`. `tools/turn-worker.ts` is an optional Cloudflare Worker using the current `generate-ice-servers` API and one-hour credentials. Configure server-side secrets `TURN_KEY_ID`, `TURN_API_TOKEN`, `ALLOWED_ORIGIN`, and a `RATE_LIMITER` binding. Never put long-lived TURN secrets in a `VITE_*` variable. No TURN configuration is needed for local or direct connections. The Worker is provided separately and has not been deployed or tested with paid credentials.
 
@@ -71,9 +79,12 @@ npm test
 npx playwright install chromium
 # Keep dev + production preview running, then:
 npm run test:e2e
+node tests/traversal.mjs
+node tests/feel.mjs
+node tests/connections.mjs --online
 ```
 
-The browser test creates **independent contexts and actual RTC connections**, rejects a third peer, drives movement and casts using keyboard input, plays each puzzle through authoritative transitions, captures both screens, and checks replay/disconnects. It uses explicit teleports to set up focused traversal/puzzle situations; it is not a claim of a human first-play duration. Screenshots and machine-readable results are in ignored `test-results/`.
+Run browser suites sequentially; independent concurrent test processes can steal keyboard focus. The main browser test creates **independent contexts and actual RTC connections**, rejects a third peer, drives movement and casts using keyboard input, plays each puzzle through authoritative transitions, captures both screens, and checks replay/disconnects. It uses explicit teleports to set up focused traversal/puzzle situations; it is not a claim of a human first-play duration. The additional traversal test completes the whole chapter with swapped disciplines using normal keyboard movement, without teleporting or checkpoint loading. The feel suite injects network delay, checks camera-relative movement and audio output. Screenshots and machine-readable results are in ignored `test-results/`.
 
 `window.__MAGIC_GAME__` exposes read-only phase, roles, connection, transforms, checkpoint, puzzles, set-piece, seal and renderer diagnostics. Development or `?debug=1` adds host checkpoint selection (`movement`, `combined`, `flower`, `wheel`, `split`, `vine`, `seal`), safe respawn, puzzle reset, return-to-lobby, test intents and teleport. F3 toggles performance display. No secrets are exposed.
 
@@ -83,4 +94,4 @@ Desktop keyboard/mouse only; no gamepad, mobile touch, built-in voice chat, acco
 
 ## Credits / licenses
 
-All game models, animation logic, geometry, spell motifs, sounds and music are original to this project. Concept sheet generated for this project using the built-in image-generation tool. No franchise art or soundtrack is included. Three.js, Vite, Trystero and glTF Transform: MIT; Rapier: Apache-2.0; DM Sans and Fraunces: SIL Open Font License (distributed through Fontsource). See `THIRD_PARTY_NOTICES.md` and the dependency packages for notices.
+All game models, animation logic, geometry, spell motifs, sounds and music are original to this project. Concept sheet generated for this project using the built-in image-generation tool. No franchise art or soundtrack is included. Three.js, Vite, Trystero and glTF Transform: MIT; Rapier: Apache-2.0; DM Sans and Fraunces: SIL Open Font License (distributed through Fontsource). See `THIRD_PARTY_NOTICES.md`, `public/licenses/` and the dependency packages for notices.
