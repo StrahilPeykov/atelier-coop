@@ -106,6 +106,18 @@ def character(name,nell=False):
         uv(name+'_Hair',(0,-.025,1.89),(.245,.205,.16),'hair',root)
         for i in range(7):uv(name+'_HairLock',((i-3)*.065,.15,1.88+math.sin(i)*.035),(.07,.09,.08),'hair',root,8,6)
         cube(name+'_ToolRoll',(.36,-.06,.83),(.15,.19,.27),'walnut',root,.025)
+    # Young-adult silhouette: longer legs and a smaller head assembly, preserving limb pivots.
+    head_parts=('Head','Nose','Ear','Eye','Brow','Curl','Hair')
+    for child in list(root.children):
+        if any(child.name.startswith(name+'_'+part) for part in head_parts):
+            child.location.x*=.76;child.location.y*=.76
+            child.location.z=1.5+(child.location.z-1.5)*.76
+            child.scale*=.76
+        if child.name.startswith(name+'_Leg'):
+            child.location.z+=.14
+            for part in child.children:
+                part.location.z*=1.17;part.scale.z*=1.17
+        else:child.location.z+=.14
     return root
 character('Ivo');character('Nell',True)
 

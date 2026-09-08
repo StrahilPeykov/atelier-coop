@@ -7,7 +7,7 @@ export class Atmosphere {
  constructor(scene:T.Scene){
   this.skyMaterial=new T.ShaderMaterial({side:T.BackSide,depthWrite:false,uniforms:{zenith:{value:new T.Color(0x789c9b)},horizon:{value:new T.Color(0xf0d5a2)},nadir:{value:new T.Color(0xc7cfb7)},glow:{value:0}},vertexShader:'varying vec3 vDirection; void main(){vDirection=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',fragmentShader:`
    varying vec3 vDirection; uniform vec3 zenith;uniform vec3 horizon;uniform vec3 nadir;uniform float glow;
-   void main(){vec3 d=normalize(vDirection);float h=smoothstep(-.04,.72,d.y);vec3 color=mix(horizon,zenith,h);color=mix(color,nadir,smoothstep(-.02,-.55,d.y));
+   void main(){vec3 d=normalize(vDirection);float h=smoothstep(-.35,.65,d.y);vec3 color=mix(horizon,zenith,h);color=mix(color,nadir,1.-smoothstep(-.8,-.4,d.y));
    float sun=max(0.,dot(d,normalize(vec3(-.48,.32,-.8))));color+=vec3(1.,.72,.36)*pow(sun,22.)*.22+vec3(1.,.91,.64)*pow(sun,900.)*.8;
    float cloud=sin(d.x*17.+d.z*11.)*.5+sin(d.x*31.-d.z*14.)*.22;float band=exp(-pow((d.y-.06)*10.,2.));color=mix(color,horizon*1.12,smoothstep(.25,.58,cloud)*band*.5);color+=glow*vec3(.24,.2,.12);gl_FragColor=vec4(color,1.);
    #include <tonemapping_fragment>

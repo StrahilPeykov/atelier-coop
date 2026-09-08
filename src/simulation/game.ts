@@ -1,4 +1,4 @@
-import { type GameState,type Intent,type GameEvent,type Player,type Vec,initialState,transform,opposite,clamp,distance,targets,aligned,desired,flowerPosition,spawn } from './state';
+import { type GameState,type Intent,type GameEvent,type Player,type Vec,initialState,transform,opposite,clamp,distance,targets,aligned,desired,flowerPosition,spawn,vineAligned } from './state';
 
 /** All puzzle authority lives here. No scene objects, clocks, DOM or network dependencies. */
 export class Simulation {
@@ -7,7 +7,7 @@ export class Simulation {
  emit(kind:string,at:Vec={x:0,y:1,z:0},role?:Player['role'],text?:string){this.events.push({id:++this.eventId,kind,at:{...at},role,text});if(this.events.length>80)this.events.shift();}
  addPlayer(id:string){const s=this.state;if(s.players.some(p=>p.id===id))return true;if(s.players.length>=2||s.phase!=='lobby')return false;s.players.push({id,role:opposite(s.players[0].role),ready:false,transform:transform(1.6),channel:false,axis:0,lift:0,sparkAt:-99,held:-1});s.paused=false;return true;}
  removePlayer(id:string){this.state.players=this.state.players.filter(p=>p.id!==id);this.state.paused=this.state.phase==='playing';for(const p of this.state.players){p.ready=false;p.channel=false;}for(const t of this.state.toys)if(t.owner===id)t.owner=null;}
- load(level:number){this.cooldowns.clear();const s=this.state;s.level=clamp(level,0,6);s.phase='playing';s.epoch++;s.time=0;s.shape=level===2||level===5?0:-.9;s.bloom=0;s.step=0;s.done=false;s.flags=[];s.ride=0;s.seal=0;s.ferryZ=6;s.message='';s.paused=false;for(let i=0;i<s.players.length;i++){const p=s.players[i];p.transform=spawn(s,i);p.channel=false;p.axis=0;p.lift=0;p.sparkAt=-99;p.held=-1;}s.toys.forEach(t=>t.owner=null);this.emit('chapter',undefined,undefined,String(level));}
+ load(level:number){this.cooldowns.clear();const s=this.state;s.level=clamp(level,0,6);s.phase='playing';s.epoch++;s.time=0;s.shape=level===2||level===5?0:-.9;s.bloom=0;s.step=0;s.done=false;s.flags=[];s.ride=0;s.seal=0;s.ferryZ=6;s.vineHeight=1;s.message='';s.paused=false;for(let i=0;i<s.players.length;i++){const p=s.players[i];p.transform=spawn(s,i);p.channel=false;p.axis=0;p.lift=0;p.sparkAt=-99;p.held=-1;}s.toys.forEach(t=>t.owner=null);this.emit('chapter',undefined,undefined,String(level));}
  respawn(p:Player){p.transform=spawn(this.state,this.state.players.indexOf(p));p.channel=false;this.emit('respawn',p.transform,p.role,p.id);}
  accept(id:string,intent:Intent){
   const s=this.state,p=s.players.find(p=>p.id===id);if(!p)return;
@@ -52,7 +52,8 @@ export class Simulation {
    if(shape)s.shape=clamp(s.shape+sh.axis*dt*1.05,-1,1);
    const gate=Math.min(5,Math.floor(s.ride/12));s.step=gate;
    const toGate=(gate+1)*12-2;
-   if(bloom&&(s.ride<toGate||aligned(s))){s.ride=Math.min(72,s.ride+dt*.9);s.bloom=1;}else s.bloom=0;
+   if(bloom)s.vineHeight=clamp(s.vineHeight+wa.lift*dt*1.5,1,6);
+   if(bloom&&(s.ride<toGate||vineAligned(s))){s.ride=Math.min(72,s.ride+dt*.9);s.bloom=1;}else s.bloom=0;
    if(s.ride>=72){s.done=true;s.seal+=dt;if(s.seal>2)this.complete();}
   }else if(!s.done){
    if(shape){s.shape=clamp(s.shape+sh.axis*dt*.7,-1,1);if(Math.abs(s.shape-desired(s))<.08&&sh.axis===0)s.shape=desired(s);}
