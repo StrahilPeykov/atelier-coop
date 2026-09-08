@@ -8,7 +8,7 @@ export class UI {
  constructor(public net:Network,public sound:Sound){this.root.innerHTML='<div class="loading"><h2>The Glasshouse Lesson</h2><p>PREPARING THE ATELIER</p></div>';}
  get menu(){return this.mode!=='play';}
  render(force=false){
-  const s=this.net.state;if(s?.phase==='playing'&&(this.mode==='room'||this.mode==='ending')){this.mode='play';this.onResume();}if(s?.phase==='ending')this.mode='ending';if(s?.phase==='lobby'&&(this.mode==='play'||this.mode==='ending'))this.mode='room';
+  const s=this.net.state;if(s?.phase==='playing'&&(this.mode==='room'||this.mode==='ending')){this.mode='play';this.onResume();}if(s?.phase==='ending')this.mode='ending';if(s?.phase==='lobby'&&['play','ending','pause'].includes(this.mode))this.mode='room';
   if(s?.paused||this.net.status==='disconnected'){if(this.mode==='play')this.mode='pause';}
   const signature=JSON.stringify([this.mode,this.net.status,this.net.error,s?.phase,s?.players.map(p=>[p.role,p.ready]),this.net.code]);if(!force&&signature===this.signature)return;this.signature=signature;
   const wrap=(content:string)=>`<div class="menu"><div class="menu-content">${content}</div><div class="bottom-note"><span>A TWO-PLAYER ADVENTURE</span><span>CHAPTER ONE</span></div><div class="edition">A little magic goes a long way.</div></div>`;

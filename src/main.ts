@@ -4,7 +4,7 @@ import '@fontsource/dm-sans/latin-600.css';
 import '@fontsource/fraunces/latin-400.css';
 import { Network } from './multiplayer/network';
 import { Simulation } from './simulation/game';
-import { type GameState,type Transform,spawn } from './simulation/state';
+import { type GameState,type Transform,spawn,targets } from './simulation/state';
 import { Physics } from './physics/world';
 import { View } from './render/view';
 import { Input } from './input/input';
@@ -34,7 +34,7 @@ async function boot(){
    const channel=input.keys.has('KeyE'),axis=input.axis('KeyA','KeyD'),lift=input.axis('KeyS','KeyW');
    let jump=input.once('Space'),dash=input.once('ShiftLeft')||input.once('ShiftRight');
    if(input.spark||input.once('KeyR')){input.spark=false;net.intent({type:'spark'});cast=.5;}
-   if(input.once('KeyQ'))net.intent({type:'hand'});if(input.once('KeyF'))net.intent({type:'ping'});
+   if(input.once('KeyQ'))net.intent({type:'hand'});if(input.once('KeyF'))net.intent({type:'ping',at:view.pick(input.pointerX,input.pointerY,targets(s))});
    acc+=dt;physics.sync(s);while(acc>=1/60){physics.step(1/60,channel?0:axis,channel?0:input.axis('KeyW','KeyS'),jump,dash,view.yaw);jump=false;dash=false;acc-=1/60;if(physics.jumped)sound.play('jump');if(physics.landed)sound.play('land');if(physics.dashed){sound.play('dash');view.event({id:0,kind:'spark',at:physics.position,role:net.local?.role});}}
    cast=Math.max(0,cast-dt);physics.position.cast=cast;send+=dt;if(send>.05){send=0;net.intent({type:'transform',value:{...physics.position}});net.intent({type:'control',channel,axis,lift});controlsSent=channel;}
    if(physics.position.y<-6){fallTimer+=dt;if(fallTimer>.55){ui.onRespawn();fallTimer=0;}}

@@ -3,7 +3,7 @@ export type Vec = {x:number;y:number;z:number};
 export type Transform = Vec & {yaw:number;moving:number;grounded:boolean;cast:number};
 export type Player = {id:string;role:Role;ready:boolean;transform:Transform;channel:boolean;axis:number;lift:number;sparkAt:number;held:number};
 export type GameState = {version:number;epoch:number;phase:'lobby'|'playing'|'ending';level:number;time:number;shape:number;bloom:number;step:number;done:boolean;flags:number[];ride:number;seal:number;ferryZ:number;message:string;players:Player[];toys:{x:number;y:number;z:number;owner:string|null}[];seed:number;paused:boolean};
-export type Intent = {type:'control';channel:boolean;axis:number;lift:number} | {type:'spark'|'hand'|'ping'|'ready'|'swap'|'start'|'rematch'|'respawn'|'advance'|'reset'} | {type:'transform';value:Transform};
+export type Intent = {type:'control';channel:boolean;axis:number;lift:number} | {type:'ping';at?:Vec} | {type:'spark'|'hand'|'ready'|'swap'|'start'|'rematch'|'respawn'|'advance'|'reset'} | {type:'transform';value:Transform};
 export type GameEvent = {id:number;kind:string;at:Vec;role?:Role;text?:string};
 export const opposite = (role:Role):Role => role==='Shaper'?'Warden':'Shaper';
 export const clamp = (n:number,a:number,b:number)=>Math.min(b,Math.max(a,n));

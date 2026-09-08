@@ -20,7 +20,7 @@ export class Simulation {
   if(intent.type==='control'){p.channel=!!intent.channel;p.axis=clamp(Number(intent.axis)||0,-1,1);p.lift=clamp(Number(intent.lift)||0,-1,1);return;}
   if(intent.type==='respawn'){this.respawn(p);return;}
   const key=id+intent.type;if(s.time-(this.cooldowns.get(key)??-99)<.25)return;this.cooldowns.set(key,s.time);
-  if(intent.type==='ping'){this.emit('ping',targets(s),p.role,`${p.role} is looking here`);return;}
+  if(intent.type==='ping'){const at=intent.at;const valid=at&&[at.x,at.y,at.z].every(Number.isFinite)&&distance(at,p.transform)<45;this.emit('ping',valid?at:targets(s),p.role,`${p.role} is looking here`);return;}
   if(intent.type==='hand'){
    if(p.held>=0){const t=s.toys[p.held];t.owner=null;t.x=p.transform.x;t.y=.3;t.z=p.transform.z-2;p.held=-1;this.emit('toss',t,p.role);}
    else {const index=s.toys.findIndex(t=>!t.owner&&distance(t,p.transform)<6);if(index>=0){p.held=index;s.toys[index].owner=p.id;this.emit('hand',s.toys[index],p.role);}}
