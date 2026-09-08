@@ -6,11 +6,11 @@ export type Surface={id:string;x:number;y:number;z:number;w:number;h:number;d:nu
 export function surfaces(s:GameState):Surface[]{
  const a:Surface[]=[];const box=(id:string,x:number,y:number,z:number,w:number,h:number,d:number,kind='stone',angle=0)=>a.push({id,x,y,z,w,h,d,kind,angle});
  if(s.level===1){box('entry',0,-.65,11,24,1.3,12,'tile');box('far',0,-.65,-15,24,1.3,10,'tile');box('island',-5,-.65,-3,6,1.3,5,'stone');
-  if(s.step>=1)box('root1',-2.5,-.25,1.5,4,.5,10,'root',-.51);
-  if(s.done)box('root2',-1,-.25,-8,4,.5,12,'root',.65);
+  if(s.step>=1)box('root1',-2.5,-.25,1,4,.5,10,'root',.56);
+  if(s.done)box('root2',-1,-.25,-8,4,.5,13,'root',-.675);
  }else if(s.level===2){box('entry',0,-.65,13,24,1.3,10,'tile');box('far',0,-.65,-16,24,1.3,8,'tile');const f=flowerPosition(s);box('ferry',f.x,f.y-.3,f.z,7,.6,6,'flower');}
  else if(s.level===4){box('left',-8,-.65,0,7,1.3,32,'tile');box('right',8,-.65,0,7,1.3,32,'tile');}
- else if(s.level===5){box('ride',0,.3,0,10,1.4,12,'root');}
+ else if(s.level===5){box('ride',s.shape*8,.3,0,10,1.4,12,'root');}
  else {box('floor',0,-.65,0,29,1.3,37,'tile');
   if(s.level===0){box('tableA',-8,.75,3,4,1.5,3,'wood');box('tableB',8,.75,3,4,1.5,3,'wood');box('step1',-10,.3,-7,3,.6,3);box('step2',-10,.8,-10,3,1.6,3);}
   if(s.level===3){for(let i=0;i<4;i++)box(`stair${i}`,-9, i*.24,-3-i*2,3,.5+i*.48,2.2);}
@@ -26,7 +26,7 @@ export class Physics {
  rebuild(s:GameState){for(const c of this.colliders.values())this.world.removeCollider(c,true);this.colliders.clear();this.sync(s);this.lastFerry=undefined;}
  sync(s:GameState){const seen=new Set<string>();for(const p of surfaces(s)){seen.add(p.id);let c=this.colliders.get(p.id);if(!c){c=this.world.createCollider(RAPIER.ColliderDesc.cuboid(p.w/2,p.h/2,p.d/2));this.colliders.set(p.id,c);}c.setTranslation({x:p.x,y:p.y,z:p.z});const angle=p.angle??0;c.setRotation({x:0,y:Math.sin(angle/2),z:0,w:Math.cos(angle/2)});}
   for(const [id,c]of this.colliders)if(!seen.has(id)){this.world.removeCollider(c,true);this.colliders.delete(id);}
-  if(s.level===2){const f=flowerPosition(s);if(this.lastFerry&&this.position.grounded&&Math.abs(this.position.x-this.lastFerry.x)<4&&Math.abs(this.position.z-this.lastFerry.z)<3.6&&Math.abs(this.position.y-this.lastFerry.y)<.7){this.teleport({...this.position,x:this.position.x+f.x-this.lastFerry.x,y:this.position.y+f.y-this.lastFerry.y,z:this.position.z+f.z-this.lastFerry.z},false);}this.lastFerry={...f};}
+  if(s.level===2||s.level===5){const f=s.level===2?flowerPosition(s):{x:s.shape*8,y:1,z:0};if(this.lastFerry&&this.position.grounded&&Math.abs(this.position.x-this.lastFerry.x)<(s.level===5?5.5:4)&&Math.abs(this.position.z-this.lastFerry.z)<(s.level===5?6.5:3.6)&&Math.abs(this.position.y-this.lastFerry.y)<.7){this.teleport({...this.position,x:this.position.x+f.x-this.lastFerry.x,y:this.position.y+f.y-this.lastFerry.y,z:this.position.z+f.z-this.lastFerry.z},false);}this.lastFerry={...f};}
  }
  teleport(p:Transform,reset=true){this.position={...p};this.body.setTranslation(p,true);this.body.setNextKinematicTranslation(p);if(reset){this.vx=this.vz=this.vy=0;this.dash=0;}this.world.step();}
  step(dt:number,mx:number,mz:number,jump:boolean,dash:boolean,yaw:number){

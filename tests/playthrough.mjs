@@ -1,0 +1,56 @@
+import { chromium } from 'playwright';
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+await fs.mkdir('test-results',{recursive:true});
+const browser=await chromium.launch({headless:true,args:['--disable-background-timer-throttling','--disable-renderer-backgrounding','--disable-backgrounding-occluded-windows','--enable-gpu']});
+const errors=[],report={started:new Date().toISOString(),checks:[],performance:[]};
+const BASE=process.env.GAME_URL||'http://localhost:4173/';
+const contexts=await Promise.all([browser.newContext({viewport:{width:1100,height:720}}),browser.newContext({viewport:{width:1100,height:720}})]);
+const [host,guest]=await Promise.all(contexts.map(c=>c.newPage()));
+for(const [i,p]of[host,guest].entries()){p.setDefaultTimeout(60000);p.on('pageerror',e=>errors.push(`${i}: ${e.message}`));p.on('console',m=>{if(m.type()==='error')errors.push(`${i}: ${m.text()}`);});}
+const state=()=>host.evaluate(()=>window.__MAGIC_GAME__.state);
+const wait=(p,fn,arg)=>p.waitForFunction(fn,arg,{timeout:90000,polling:150});
+const check=(s)=>{console.log('PASS',s);report.checks.push(s);};
+async function shot(name){await host.screenshot({path:`test-results/${name}-shaper.png`});await guest.screenshot({path:`test-results/${name}-warden.png`});report.performance.push({name,host:await host.evaluate(()=>window.__MAGIC_GAME__.renderer),guest:await guest.evaluate(()=>window.__MAGIC_GAME__.renderer)});}
+async function teleport(p,x,y,z){await p.evaluate(([x,y,z])=>window.__MAGIC_GAME__.teleport(x,y,z),[x,y,z]);await p.waitForTimeout(300);}
+async function release(p){for(const key of ['KeyE','KeyA','KeyD','KeyW','KeyS'])await p.keyboard.up(key);await p.waitForTimeout(200);}
+async function align(sh,target){const s=await state();const direction=s.shape<target?'KeyD':'KeyA';await sh.keyboard.down('KeyE');await sh.keyboard.down(direction);await wait(host,({target,dir})=>dir==='KeyD'?window.__MAGIC_GAME__.state.shape>=target-.045:window.__MAGIC_GAME__.state.shape<=target+.045,{target,dir:direction});await sh.keyboard.up(direction);await sh.waitForTimeout(250);const actual=(await state()).shape;assert(Math.abs(actual-target)<.17,`alignment ${actual} target ${target}`);}
+async function bloom(wa,step){await wa.keyboard.down('KeyE');await wait(host,step=>window.__MAGIC_GAME__.state.step>step,step);await release(wa);}
+async function checkpoint(n){await release(host);await release(guest);await host.evaluate(n=>window.__MAGIC_GAME__.loadCheckpoint(n),n);await wait(guest,n=>window.__MAGIC_GAME__.currentCheckpoint===n,n);await host.waitForTimeout(600);}
+try{
+ await host.goto(BASE+'?local=1&debug=1');await host.getByRole('button',{name:/Create a lesson/}).waitFor();await host.waitForTimeout(1600);await host.screenshot({path:'test-results/00-title.png'});
+ await host.getByRole('button',{name:/Create a lesson/}).click();const code=await host.evaluate(()=>window.__MAGIC_GAME__.roomCode);
+ await guest.goto(`${BASE}?local=1&debug=1&room=${code}`);await guest.getByRole('button',{name:/Join the lesson/}).click();await wait(host,()=>window.__MAGIC_GAME__.peerCount===2);await wait(guest,()=>window.__MAGIC_GAME__.peerCount===2);
+ assert((await host.evaluate(()=>window.__MAGIC_GAME__.rtc)).some(p=>p.state==='connected'));check('Real RTCDataChannel connection; independent browser contexts');
+ const thirdContext=await browser.newContext({viewport:{width:600,height:400}}),third=await thirdContext.newPage();await third.goto(`${BASE}?local=1&debug=1&room=${code}`);await third.getByRole('button',{name:/Join the lesson/}).click();await wait(third,()=>window.__MAGIC_GAME__.connectionState==='rejected');assert.equal((await state()).players.length,2);await thirdContext.close();check('Third player rejected without altering admitted pair');
+ await host.getByRole('button',{name:/Swap disciplines/}).click();await wait(guest,()=>window.__MAGIC_GAME__.localRole==='Shaper');await guest.getByRole('button',{name:/Swap disciplines/}).click();await wait(host,()=>window.__MAGIC_GAME__.localRole==='Shaper');check('Both peers can swap; disciplines remain complementary');
+ await host.getByRole('button',{name:'I’m ready'}).click();await guest.getByRole('button',{name:'I’m ready'}).click();await host.getByRole('button',{name:/Begin the lesson/}).click();await wait(guest,()=>window.__MAGIC_GAME__.gamePhase==='playing');await host.waitForTimeout(600);
+ const before=await host.evaluate(()=>window.__MAGIC_GAME__.localPlayer.z);await host.keyboard.down('KeyW');await wait(host,b=>window.__MAGIC_GAME__.localPlayer.z<b-3,before);await host.keyboard.press('Space');await wait(host,()=>window.__MAGIC_GAME__.localPlayer.y>.5);await host.keyboard.up('KeyW');await wait(host,()=>window.__MAGIC_GAME__.localPlayer.grounded);await host.keyboard.press('ShiftLeft');await host.waitForTimeout(500);check('Responsive movement, jump, landing and dash via actual keyboard');
+ await teleport(host,-5,0,9);await host.keyboard.press('KeyQ');await wait(host,()=>window.__MAGIC_GAME__.state.toys.some(t=>t.owner));await wait(guest,()=>window.__MAGIC_GAME__.state.toys.some(t=>t.owner));await host.keyboard.press('KeyQ');await host.keyboard.press('KeyF');await guest.keyboard.press('KeyR');check('Arcane Hand replicated, throw, Spark and partner ping');
+ await teleport(host,-3,0,3);await teleport(guest,3,0,3);await align(host,0);await bloom(guest,0);await release(host);await shot('01-atelier');
+ await teleport(host,-4,0,0);await teleport(guest,4,0,0);await host.keyboard.press('KeyR');await guest.keyboard.press('KeyR');await wait(guest,()=>window.__MAGIC_GAME__.currentCheckpoint===1);check('Teaching seal requires two distinct nodes and paired Sparks');
+ await host.waitForTimeout(600);await teleport(host,-2,0,6);await teleport(guest,2,0,6);await align(host,-.65);await bloom(guest,0);await release(host);await shot('02-root-bridge');
+ // Walk the first newly grown root using camera-independent keyboard movement.
+ await teleport(host,-2.5,.1,1.5);await host.keyboard.down('KeyW');await host.waitForTimeout(350);await host.keyboard.up('KeyW');assert((await host.evaluate(()=>window.__MAGIC_GAME__.localPlayer)).y>-.5);
+ await teleport(host,-6,0,-3);await teleport(guest,-4,0,-3);await align(host,.65);await bloom(guest,1);await release(host);check('Both growth anchors require complementary simultaneous spells; created root is walkable');
+ await teleport(host,0,0,-14);await teleport(guest,2,0,-14);await wait(guest,()=>window.__MAGIC_GAME__.currentCheckpoint===2);await host.waitForTimeout(700);
+ await teleport(host,-1,1.1,6);await teleport(guest,1,1.1,6);await wait(host,()=>window.__MAGIC_GAME__.state.flags[0]===1);
+ for(let i=0;i<3;i++){
+  await align(host,[-7/9,7/9,0][i]);await release(host);const goal=([3,6,4][i]-1)/6;const curr=(await state()).bloom;const direction=curr<goal?'KeyW':'KeyS';await guest.keyboard.down('KeyE');await guest.keyboard.down(direction);await wait(host,({goal,up})=>up?window.__MAGIC_GAME__.state.bloom>=goal-.025:window.__MAGIC_GAME__.state.bloom<=goal+.025,{goal,up:direction==='KeyW'});await release(guest);
+  await wait(host,()=>window.__MAGIC_GAME__.state.players.every(p=>Math.abs(p.transform.y-(1+window.__MAGIC_GAME__.state.bloom*6))<1));
+  await host.keyboard.press('KeyR');await wait(host,i=>window.__MAGIC_GAME__.state.step>i,i);
+ }
+ await shot('03-flower-ferry');check('Two-axis flower ferry carries both avatars and collects all three droplets');
+ await teleport(host,0,0,-15);await teleport(guest,2,0,-15);await wait(guest,()=>window.__MAGIC_GAME__.currentCheckpoint===3);await host.waitForTimeout(700);
+ await teleport(host,-3,0,3);await teleport(guest,3,0,3);for(let i=0;i<3;i++){await align(host,[-.65,.6,0][i]);await bloom(guest,i);await release(host);}await shot('04-waterwheel');await teleport(host,-5,0,-4);await teleport(guest,5,0,-4);await host.keyboard.press('KeyR');await guest.keyboard.press('KeyR');await wait(guest,()=>window.__MAGIC_GAME__.currentCheckpoint===4);check('Three waterwheel braces and synchronized pressure release');
+ await host.waitForTimeout(700);await shot('05-split-gallery');for(let i=0;i<3;i++){await align(host,[-.8,.8,0][i]);await bloom(guest,i);await release(host);}await wait(guest,()=>window.__MAGIC_GAME__.currentCheckpoint===5);check('Separate balconies and asymmetric route information; three valid routes');
+ await host.waitForTimeout(700);await guest.keyboard.down('KeyE');for(let i=0;i<6;i++){await align(host,[-.8,.8,0,-.8,0,.8][i]);await host.keyboard.up('KeyE');await wait(host,i=>window.__MAGIC_GAME__.state.ride>=(i+1)*12||window.__MAGIC_GAME__.state.level===6,i);if(i===2)await shot('06-wild-vine');}await release(guest);await wait(guest,()=>window.__MAGIC_GAME__.currentCheckpoint===6);check('Full six-gate vine ride with actual growth/steering inputs');
+ await host.waitForTimeout(700);await teleport(host,-3,0,4);await teleport(guest,3,0,4);for(let i=0;i<3;i++){await align(host,[-.65,.65,0][i]);await bloom(guest,i);await release(host);}await shot('07-final-seal');
+ await teleport(host,-5,0,0);await teleport(guest,5,0,0);await host.keyboard.press('KeyR');await guest.keyboard.press('KeyR');await wait(host,()=>window.__MAGIC_GAME__.state.seal>0);await shot('08-finale');await wait(guest,()=>window.__MAGIC_GAME__.gamePhase==='ending');await shot('09-ending');check('Final paired seal, repair spectacle and ending replicated');
+ await host.getByRole('button',{name:/Another lesson/}).click();await wait(guest,()=>window.__MAGIC_GAME__.gamePhase==='lobby');await host.getByRole('button',{name:/Swap disciplines/}).click();await wait(guest,()=>window.__MAGIC_GAME__.localRole==='Shaper');check('Same-room rematch and discipline swap');
+ await host.getByRole('button',{name:'I’m ready'}).click();await guest.getByRole('button',{name:'I’m ready'}).click();await host.getByRole('button',{name:/Begin the lesson/}).click();await wait(guest,()=>window.__MAGIC_GAME__.gamePhase==='playing');await host.waitForTimeout(500);
+ await teleport(host,0,-7,10);await wait(host,()=>window.__MAGIC_GAME__.localPlayer.y>=0);check('Fall recovery returns to nearby checkpoint');
+ await guest.close();await wait(host,()=>window.__MAGIC_GAME__.connectionState==='disconnected');assert((await state()).paused);check('Guest disconnect freezes shared puzzle and offers recovery');
+ await host.getByRole('button',{name:/Return both players to the room/}).click();const guest2=await contexts[1].newPage();await guest2.goto(`${BASE}?local=1&debug=1&room=${code}`);await guest2.getByRole('button',{name:/Join the lesson/}).click();await wait(guest2,()=>window.__MAGIC_GAME__.peerCount===2);await host.close();await wait(guest2,()=>window.__MAGIC_GAME__.connectionState==='disconnected');check('Replacement guest admitted from lobby; host disconnect shown to guest');
+}catch(e){report.failure=String(e);console.error(e);await host.screenshot({path:'test-results/failure-host.png'}).catch(()=>{});await guest.screenshot({path:'test-results/failure-guest.png'}).catch(()=>{});console.log('STATE',JSON.stringify(await state().catch(()=>null)));process.exitCode=1;}
+finally{report.errors=errors;report.finished=new Date().toISOString();await fs.writeFile('test-results/report.json',JSON.stringify(report,null,2));console.log('ERRORS',errors);await browser.close();}

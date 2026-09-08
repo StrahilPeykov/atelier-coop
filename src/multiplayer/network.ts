@@ -16,7 +16,8 @@ export class Network {
   const local=(import.meta.env.DEV&&!new URLSearchParams(location.search).has('online'))||new URLSearchParams(location.search).has('local');
   if(local){config.relayConfig={urls:[import.meta.env.VITE_SIGNAL_URL||`ws://${location.hostname}:8787`]};this.transport='WebRTC · local discovery';}
   else this.transport='WebRTC · public discovery';
-  this.room=(local?joinLocal:joinPublic)(config,this.code,{onJoinError:e=>{this.log(e.error);}});
+  const callbacks={onJoinError:(e:{error:string})=>{this.log(e.error);}};
+  this.room=local?joinLocal({...config,relayConfig:config.relayConfig!},this.code,callbacks):joinPublic(config,this.code,callbacks);
   this.message=this.room.makeAction<string>('lesson');
   this.message.onMessage=(data,ctx)=>{try{this.receive(JSON.parse(data),ctx.peerId);}catch(e){this.log(`Ignored malformed peer message: ${String(e)}`);}};
   this.room.onPeerJoin=id=>{this.log('Peer connected');this.send({kind:'hello',host:this.host},id);};
